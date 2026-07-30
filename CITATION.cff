@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software or framework, please cite the associated article and this repository."
+title: "Data-Limited National WWTP Greenhouse-Gas Inventory Framework"
+type: software
+authors:
+  - family-names: "Zheng"
+    given-names: "Hongting"
+license: "MIT"
+version: "1.0.0"
+abstract: >-
+  Python implementation of a hierarchical bottom-up framework for constructing
+  national greenhouse-gas inventories of municipal wastewater treatment plants
+  under data-limited conditions. The workflow combines local plant-level model
+  fitting, national extrapolation, Monte Carlo uncertainty propagation, and
+  Sobol-like sensitivity diagnostics.
+keywords:
+  - wastewater treatment plants
+  - greenhouse-gas inventory
+  - hierarchical modelling
+  - data-limited assessment
+  - Monte Carlo simulation
+  - sensitivity analysis
