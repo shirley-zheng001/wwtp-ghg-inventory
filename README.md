@@ -4,7 +4,7 @@
 
 This repository provides the Python implementation of a hierarchical bottom-up framework for constructing national greenhouse-gas (GHG) inventories of municipal wastewater treatment plants (WWTPs) under data-limited conditions.
 
-The framework derives component-specific emission intensities from local plant-level datasets and extrapolates them to a national WWTP dataset. It estimates direct methane (CH₄) and nitrous oxide (N₂O) emissions, electricity-related emissions, and an operational Scope 3 proxy, with uncertainty propagated through Monte Carlo simulation and predictor contributions assessed using Sobol-like sensitivity diagnostics.
+The framework derives component-specific emission intensities from local plant-level datasets and extrapolates them to a national WWTP dataset. It estimates direct methane (CH₄) and nitrous oxide (N₂O) emissions, electricity-related emissions, and a partial upstream operational-input proxy for Scope 3. Uncertainty is propagated through Monte Carlo simulation, and predictor sensitivity is assessed using a 2⁴ full-factorial sensitivity (predictor-ablation) analysis.
 
 China is used as the application case in the associated manuscript.
 
@@ -13,9 +13,9 @@ China is used as the application case in the associated manuscript.
 The workflow consists of four main stages:
 
 1. Harmonise treatment-technology labels, effluent classes, climate zones, and capacity units across the local and national datasets.
-2. Construct component-specific emission-intensity targets from local plant-level data.
+2. Construct component-specific intensity targets from local plant-level data.
 3. Fit hierarchical log-linear models and extrapolate the fitted intensities to the national WWTP dataset.
-4. Aggregate national and provincial emissions and conduct Monte Carlo uncertainty analysis and Sobol-like sensitivity diagnostics.
+4. Aggregate national and provincial emissions, perform Monte Carlo uncertainty analysis, and conduct a 2⁴ full-factorial sensitivity (predictor-ablation) analysis.
 
 Detailed methodological definitions, equations, assumptions, and limitations are provided in the associated manuscript and Supporting Information.
 
@@ -33,14 +33,14 @@ wwtp-ghg-inventory/
 │   ├── local_wwtp_example.xlsx
 │   └── national_wwtp_example.xlsx
 └── results/
-    └── Inventory_outputs_PP_MC_Sobol.xlsx
+    └── Inventory_outputs.xlsx
 ```
 
 The example workbooks each contain 10 synthetic WWTP records and are provided solely to demonstrate the required input structure and workflow. They do not contain empirical plant-level observations and do not reproduce the national results reported in the manuscript.
 
 ## Software requirements
 
-The workflow was tested with Python 3.13.5 and the package versions specified in `requirements.txt`.
+The script uses Python 3 and the packages specified in `requirements.txt`.
 
 Install the required packages using:
 
@@ -57,6 +57,17 @@ Run the main script:
 ```bash
 python wwtp_inventory.py
 ```
+
+If numerical model fitting stalls on Windows, the following PowerShell commands can limit the numerical libraries to one CPU thread before running the script:
+
+```powershell
+$env:OPENBLAS_NUM_THREADS="1"
+$env:OMP_NUM_THREADS="1"
+$env:MKL_NUM_THREADS="1"
+python wwtp_inventory.py
+```
+
+These commands set session-level environment variables; they are not additional Python dependencies.
 
 The script will ask the user to select, in order:
 
@@ -77,17 +88,18 @@ To test the workflow, select:
 
 | Field | Unit or format | Role in the framework |
 |---|---|---|
+| City | Text | Descriptive location information (not a model predictor) |
+| Name of WWTPs | Text | Plant identifier (not a model predictor) |
+| Plant capacity | Thousand m³ d⁻¹ | Capacity predictor |
 | Technology | Categorical text | Treatment-technology grouping |
-| Design Capacity | Thousand m³ d⁻¹ | Capacity predictor |
-| COD | mg L⁻¹ | CH₄ intensity target |
-| TN | mg L⁻¹ | N₂O intensity target |
-| Electricity Use Intensity | kWh m⁻³ | Electricity-related intensity target |
-| Chemical Cost | RMB per thousand m³ | Operational Scope 3 proxy |
-| Repair and Maintenance Cost | RMB per thousand m³ | Operational Scope 3 proxy |
-| Administrative Cost | RMB per thousand m³ | Operational Scope 3 proxy |
+| Electricity Use Intensity | kWh m⁻³ | Electricity-use intensity target |
+| COD removed | mg L⁻¹ | CH₄ intensity target |
+| TN removed | mg L⁻¹ | N₂O intensity target |
+| Chemical Cost | RMB per thousand m³ | Partial upstream operational-input proxy |
+| Repair and Maintenance Cost | RMB per thousand m³ | Partial upstream operational-input proxy |
+| Administrative Cost | RMB per thousand m³ | Partial upstream operational-input proxy |
 | Effluent Standard | Categorical text | Optional fixed effect |
 | Climate Zone | Categorical text | Optional fixed effect |
-| Province | Categorical text | Location information |
 
 ### National plant-level dataset
 
@@ -104,7 +116,7 @@ To test the workflow, select:
 | Effluent Standard | Categorical text | Fixed-effect category |
 | Climate Zone | Categorical text | Fixed-effect category |
 
-The script recognises several equivalent column labels, but the example workbooks provide the recommended names and units.
+The script recognises several equivalent column labels. For Scope 1, removal can also be calculated from paired influent–effluent concentrations or estimated using configured source-specific removal fractions where neither is available.
 
 ## Technology crosswalk
 
@@ -118,24 +130,25 @@ The empirical datasets used in the associated manuscript were compiled from the 
 |---|---|---:|---|
 | Shenzhen | Local model fitting | 26 WWTPs | Liao et al. [1] |
 | Shanghai | Local model fitting | 45 WWTPs | Xi et al. [2] |
-| Beijing | Local model fitting | 37 WWTPs | Zhou et al. [3] |
+| Beijing | Local model fitting | 38 WWTPs | Zhou et al. [3] |
 | Wuhan | Local model fitting | 30 WWTPs | Twagirayezu et al. [4] |
 | Binzhou | Local model fitting | 4 WWTPs | Wang et al. [5] |
 | Xinjiang | Local model fitting | 5 WWTPs | Zhao et al. [6] |
 | China national dataset | National model application | 2,464 A-WWTP records | Zhou et al. [7], originally compiled from China Water Association data |
 
-The original national source dataset contained 2,665 WWTP records across 29 provincial-level regions, including both above-ground and underground WWTPs. Application of the operational boundary retained 2,464 above-ground municipal WWTP records. During model application, seven records with zero reported design capacity did not yield modelled estimates; the resulting outputs therefore cover 2,457 WWTPs.
+The original national source dataset contained 2,665 WWTP records across 29 provincial-level regions, including both above-ground and underground WWTPs. Application of the operational boundary retained 2,464 above-ground municipal WWTP records. Seven records with non-positive design capacity were excluded, leaving 2,457 WWTPs for national extrapolation. The six local datasets contain 148 plant records.
 
 ## Outputs
 
-The script generates an Excel workbook named `Inventory_outputs_PP_MC_Sobol.xlsx` containing six worksheets:
+The script generates an Excel workbook named `Inventory_outputs.xlsx` containing seven worksheets:
 
 - `National_Summary_MC`
 - `Provincial_Summary_MC`
 - `Tech_Prov_Weighted_MC`
-- `Sobol_Y_16runs_kgCO2e_m3`
-- `Sobol_FirstOrder_%`
-- `Sobol_TotalOrder_%`
+- `Factorial_Y_16runs`
+- `Factorial_MainEffect_pct`
+- `Factorial_TotalContrib_pct`
+- `Factorial_Model_Specs`
 
 The workbook provided in `results/` contains the aggregated outputs used in the associated manuscript. It is an unmodified copy of the analytical output workbook and does not contain the restricted plant-level input data.
 
@@ -157,7 +170,7 @@ The public script uses:
 
 - 1,000 Monte Carlo iterations;
 - random seed 42; and
-- a 16-run Sobol-like full-factorial design.
+- a 2⁴ full-factorial sensitivity (predictor-ablation) analysis (16 model specifications).
 
 Retaining these settings supports computational reproducibility when the same empirical input datasets are available. Results may differ when alternative datasets, emission factors, model specifications, or software versions are used.
 

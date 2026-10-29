@@ -12,7 +12,7 @@ abstract: >-
   national greenhouse-gas inventories of municipal wastewater treatment plants
   under data-limited conditions. The workflow combines local plant-level model
   fitting, national extrapolation, Monte Carlo uncertainty propagation, and
-  Sobol-like sensitivity diagnostics.
+  a 2^4 full-factorial sensitivity (predictor-ablation) analysis.
 keywords:
   - wastewater treatment plants
   - greenhouse-gas inventory
